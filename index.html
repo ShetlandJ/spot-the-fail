@@ -1,0 +1,407 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, viewport-fit=cover">
+<title>evaluagent · Spot the Fail</title>
+<meta name="description" content="A Contact Centre Expo challenge from evaluagent at stand CC-E20.">
+<meta name="robots" content="noindex, nofollow">
+<meta name="theme-color" content="#002149">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Lora:ital,wght@0,500;0,600;1,500;1,600&family=Poppins:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+:root{
+  --navy:#002149;--navy-deep:#00163a;--navy-ink:#001230;--navy-line:#163a66;
+  --aqua:#33d4cd;--aqua-light:#83efdd;--violet:#6769f2;--paper:#fafaf7;
+  --fail:#d1435b;--fail-deep:#b0324a;--muted:#5a6b82;--soft:#9fb0c6;--line:#d6dde6;
+  --grad:linear-gradient(100deg,#33d4cd 0%,#6769f2 100%);
+}
+*{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent}
+html,body{height:100%}
+body{background:var(--navy);color:var(--paper);font-family:Poppins,system-ui,sans-serif;overflow:hidden;overscroll-behavior:none;-webkit-user-select:none;user-select:none}
+button{font:inherit;color:inherit;border:0;background:none;cursor:pointer}
+.screen{position:fixed;inset:0;display:none;flex-direction:column;max-width:480px;margin:0 auto;padding:max(16px,env(safe-area-inset-top)) 16px max(16px,env(safe-area-inset-bottom))}
+.screen.on{display:flex}
+
+/* brand bits */
+.wordmark{font-weight:600;font-size:18px;letter-spacing:-.01em}
+.wordmark span{background:var(--grad);-webkit-background-clip:text;background-clip:text;color:transparent}
+.eyebrow{font-size:11px;font-weight:600;letter-spacing:.14em;text-transform:uppercase;color:var(--aqua)}
+.btn{display:flex;align-items:center;justify-content:center;gap:8px;height:56px;border-radius:14px;font-weight:600;font-size:17px;width:100%}
+.btn-primary{background:var(--aqua);color:var(--navy)}
+.btn-primary:active{background:var(--aqua-light)}
+.btn-ghost{border:1.5px solid var(--navy-line);color:var(--paper)}
+
+/* start */
+#start{justify-content:space-between;overflow-y:auto}
+#start .top{display:flex;justify-content:space-between;align-items:center}
+#start .stand{font-size:12px;color:var(--soft)}
+#start h1{font-family:Lora,Georgia,serif;font-weight:600;font-size:52px;line-height:1;letter-spacing:-.02em;margin:14px 0 14px}
+#start h1 em{font-style:italic;color:var(--fail)}
+#start .lead{color:#cdd7e4;font-size:16px;line-height:1.5}
+.rules{list-style:none;display:grid;gap:10px;margin:24px 0}
+.rules li{display:flex;gap:12px;align-items:center;font-size:14px;color:#cdd7e4}
+.rules b{color:var(--paper);font-weight:600}
+.key{flex:none;width:44px;height:44px;border-radius:12px;display:grid;place-items:center;font-weight:700;font-size:13px}
+.key.f{background:rgba(209,67,91,.16);color:#ff8fa1}
+.key.p{background:rgba(51,212,205,.16);color:var(--aqua)}
+.key.x{background:rgba(103,105,242,.2);color:#b6b7ff}
+.board{margin-top:20px}
+.board h3{font-size:11px;letter-spacing:.14em;text-transform:uppercase;color:var(--soft);font-weight:600;margin-bottom:8px}
+.board ol{list-style:none;display:grid;gap:2px}
+.board li{display:flex;gap:10px;align-items:center;padding:8px 10px;border-radius:10px;font-size:14px;background:rgba(255,255,255,.04)}
+.board li .r{width:20px;color:var(--soft);font-weight:600}
+.board li .n{flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.board li .s{font-weight:600;font-variant-numeric:tabular-nums}
+.board li.me{background:rgba(51,212,205,.14)}
+.board .empty{font-size:13px;color:var(--soft);padding:8px 0}
+
+/* game */
+#game{gap:12px}
+.hud{display:flex;align-items:center;justify-content:space-between}
+.hud .time{font-weight:700;font-size:28px;font-variant-numeric:tabular-nums;min-width:56px}
+.hud .time.low{color:var(--fail)}
+.hud .score{text-align:right}
+.hud .score .v{font-weight:700;font-size:28px;font-variant-numeric:tabular-nums;line-height:1}
+.hud .score .l{font-size:10px;letter-spacing:.14em;text-transform:uppercase;color:var(--soft)}
+.mult{font-weight:700;font-size:14px;padding:6px 12px;border-radius:999px;background:rgba(255,255,255,.08);color:var(--soft);transition:transform .15s}
+.mult.hot{background:var(--grad);color:#fff}
+.mult.bump{transform:scale(1.18)}
+.bar{height:6px;border-radius:3px;background:rgba(255,255,255,.1);overflow:hidden}
+.bar i{display:block;height:100%;width:100%;background:var(--grad);transform-origin:left}
+.bar.low i{background:var(--fail)}
+
+.stage{position:relative;flex:1;min-height:0}
+.card{position:absolute;inset:0;background:var(--paper);color:var(--navy);border-radius:22px;padding:24px 22px;display:flex;flex-direction:column;box-shadow:0 28px 60px -20px rgba(0,0,0,.5);touch-action:none;will-change:transform}
+.card.under{transform:scale(.95) translateY(14px);opacity:.55;pointer-events:none}
+.card .meta{display:flex;justify-content:space-between;align-items:center;font-size:11px;letter-spacing:.12em;text-transform:uppercase;color:var(--muted);font-weight:600}
+.card .ctx{margin-top:18px;padding:12px 14px;border-radius:12px;background:#eef1f5;font-size:14px;line-height:1.45;color:#2a4060}
+.card .ctx b{display:block;font-size:10px;letter-spacing:.14em;text-transform:uppercase;color:var(--muted);margin-bottom:2px}
+.card .who{margin-top:auto;font-size:10px;letter-spacing:.14em;text-transform:uppercase;color:var(--muted);font-weight:600}
+.card .line{font-family:Lora,Georgia,serif;font-weight:500;font-size:clamp(21px,6vw,26px);line-height:1.35;margin:6px 0 auto;color:var(--navy)}
+.card .hint{display:flex;justify-content:space-between;font-size:12px;color:#97a5b8;font-weight:500}
+.stamp{position:absolute;top:22px;padding:6px 14px;border:3px solid;border-radius:10px;font-weight:700;font-size:22px;letter-spacing:.06em;opacity:0;pointer-events:none}
+.stamp.pass{left:20px;color:#1a8e78;border-color:#1a8e78;transform:rotate(-10deg)}
+.stamp.fail{right:20px;color:var(--fail);border-color:var(--fail);transform:rotate(10deg)}
+
+.feedback{min-height:58px;border-radius:14px;padding:10px 14px;font-size:13px;line-height:1.4;display:flex;align-items:center;gap:10px;opacity:0;transition:opacity .15s}
+.feedback.on{opacity:1}
+.feedback.bad{background:rgba(209,67,91,.16);color:#ffc2cb}
+.feedback.good{background:rgba(51,212,205,.12);color:var(--aqua-light)}
+.feedback b{color:#fff}
+.controls{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+.controls .btn{height:64px;font-size:18px;letter-spacing:.04em}
+.b-fail{background:var(--fail);color:#fff}
+.b-fail:active{background:var(--fail-deep)}
+.b-pass{background:var(--aqua);color:var(--navy)}
+.b-pass:active{background:var(--aqua-light)}
+
+.pop{position:absolute;left:50%;top:40%;transform:translate(-50%,0);font-weight:700;font-size:28px;color:var(--aqua);pointer-events:none;animation:pop .7s ease-out forwards;z-index:5;text-shadow:0 2px 12px rgba(0,0,0,.3)}
+@keyframes pop{to{transform:translate(-50%,-60px);opacity:0}}
+.count{position:fixed;inset:0;display:none;place-items:center;background:var(--navy);z-index:10;font-family:Lora,serif;font-weight:600;font-size:120px}
+.count.on{display:grid}
+.flash-bad{animation:shake .3s}
+@keyframes shake{25%{transform:translateX(-8px)}75%{transform:translateX(8px)}}
+
+/* end */
+#end{overflow-y:auto;gap:18px}
+#end .hero{text-align:center;padding-top:8px}
+#end .big{font-weight:700;font-size:64px;line-height:1;font-variant-numeric:tabular-nums;margin:6px 0 4px}
+#end .sub{color:var(--soft);font-size:14px}
+.stats{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}
+.stat{background:rgba(255,255,255,.05);border-radius:14px;padding:12px;text-align:center}
+.stat .v{font-weight:700;font-size:22px;font-variant-numeric:tabular-nums}
+.stat .l{font-size:10px;letter-spacing:.12em;text-transform:uppercase;color:var(--soft);margin-top:2px}
+.pitch{background:var(--paper);color:var(--navy);border-radius:18px;padding:18px}
+.pitch p{font-family:Lora,serif;font-size:19px;line-height:1.4;font-weight:500}
+.pitch p strong{font-weight:600}
+.pitch small{display:block;margin-top:10px;font-size:13px;color:var(--muted);line-height:1.45}
+.cats{display:grid;gap:10px}
+.cat .row{display:flex;justify-content:space-between;font-size:13px;margin-bottom:4px}
+.cat .row span:last-child{color:var(--soft);font-variant-numeric:tabular-nums}
+.cat .track{height:8px;border-radius:4px;background:rgba(255,255,255,.08);overflow:hidden}
+.cat .track i{display:block;height:100%;border-radius:4px;background:var(--aqua)}
+.cat.weak .track i{background:var(--fail)}
+.section-h{font-size:11px;letter-spacing:.14em;text-transform:uppercase;color:var(--soft);font-weight:600;margin-bottom:8px}
+.miss{background:rgba(255,255,255,.04);border-radius:12px;padding:12px 14px;margin-bottom:6px}
+.miss q{font-family:Lora,serif;font-style:italic;font-size:15px;line-height:1.4;display:block;color:#e6ecf3}
+.miss div{font-size:12.5px;color:var(--soft);margin-top:6px;line-height:1.4}
+.miss div b{color:#ff8fa1}
+.miss div b.ok{color:var(--aqua)}
+.save{display:flex;gap:8px}
+.save input{flex:1;min-width:0;height:56px;border-radius:14px;border:1.5px solid var(--navy-line);background:var(--navy-deep);color:var(--paper);font:inherit;font-size:16px;padding:0 14px;user-select:text;-webkit-user-select:text}
+.save input:focus{outline:none;border-color:var(--aqua)}
+.save .btn{width:auto;padding:0 20px}
+.actions{display:grid;gap:10px;padding-bottom:8px}
+@media (min-height:760px){.card .line{font-size:28px}}
+</style>
+</head>
+<body>
+
+<section id="start" class="screen on">
+  <div>
+    <div class="top">
+      <div class="wordmark">evalu<span>agent</span></div>
+      <div class="stand">Stand CC-E20</div>
+    </div>
+    <div style="margin-top:28px" class="eyebrow">Contact Centre Expo challenge</div>
+    <h1>Spot the <em>fail</em></h1>
+    <p class="lead">You're the QA evaluator. You've got 60 seconds to judge as many agent responses as you can.</p>
+    <ul class="rules">
+      <li><span class="key f">FAIL</span><span><b>Swipe left</b> if it breaks the rules: compliance, care, resolution or vulnerability.</span></li>
+      <li><span class="key p">PASS</span><span><b>Swipe right</b> if it's what a great agent would say.</span></li>
+      <li><span class="key x">×5</span><span><b>Build streaks</b> to multiply your score. Answer fast for bonus points.</span></li>
+    </ul>
+    <div class="board" id="startBoard"></div>
+  </div>
+  <div style="padding-top:16px"><button class="btn btn-primary" id="go">Start evaluating</button></div>
+</section>
+
+<section id="game" class="screen">
+  <div class="hud">
+    <div class="time" id="time">60</div>
+    <div class="mult" id="mult">×1</div>
+    <div class="score"><div class="v" id="score">0</div><div class="l">Score</div></div>
+  </div>
+  <div class="bar" id="bar"><i id="barFill"></i></div>
+  <div class="stage" id="stage"></div>
+  <div class="feedback" id="fb"></div>
+  <div class="controls">
+    <button class="btn b-fail" id="bFail">← FAIL</button>
+    <button class="btn b-pass" id="bPass">PASS →</button>
+  </div>
+</section>
+
+<section id="end" class="screen">
+  <div class="hero">
+    <div class="eyebrow">Time's up</div>
+    <div class="big" id="eScore">0</div>
+    <div class="sub" id="eRank"></div>
+  </div>
+  <div class="stats">
+    <div class="stat"><div class="v" id="eCount">0</div><div class="l">Evaluated</div></div>
+    <div class="stat"><div class="v" id="eAcc">0%</div><div class="l">Accuracy</div></div>
+    <div class="stat"><div class="v" id="eStreak">0</div><div class="l">Best streak</div></div>
+  </div>
+  <div class="save" id="saveRow">
+    <input id="name" maxlength="20" placeholder="Your name for the leaderboard" autocomplete="off">
+    <button class="btn btn-primary" id="saveBtn">Save</button>
+  </div>
+  <div class="pitch" id="pitch"></div>
+  <div><div class="section-h">Your QA profile</div><div class="cats" id="cats"></div></div>
+  <div id="missWrap"><div class="section-h">What you missed</div><div id="misses"></div></div>
+  <div class="board" id="endBoard"></div>
+  <div class="actions">
+    <button class="btn btn-primary" id="again">Play again</button>
+  </div>
+</section>
+
+<div class="count" id="count">3</div>
+
+<script>
+/* [tier, pass?, category, agent line, why, customer context?]
+   tier 1 = obvious, 2 = needs thought, 3 = subtle. */
+const CATS={C:'Compliance',K:'Customer care',R:'Resolution',V:'Vulnerability'};
+const Q=[
+ // ---- tier 1
+ [1,1,'C',"Before I go into the account, can I just confirm your full name and postcode, please?","Proper ID&V before accessing the account."],
+ [1,1,'K',"I'm really sorry that's happened. Let's get it sorted for you now.","Acknowledges the problem and takes ownership."],
+ [1,1,'R',"Just to recap: I've cancelled the order and refunded the £40 to your card. Is there anything else I can help with?","Clear summary and a check for anything else."],
+ [1,1,'K',"Thanks so much for holding, I appreciate your patience.","Thanks the customer after a hold."],
+ [1,1,'C',"Just so you know, this call is recorded for training and quality purposes.","Call recording disclosure given."],
+ [1,1,'V',"No problem at all. I can read it through with you now, and I'll set future letters to large print.","Adapts to the customer's needs and records the adjustment.","I can't read the letter you sent, my eyesight's going."],
+ [1,1,'R',"I've raised that refund now, and you'll get a confirmation email within the hour.","Action taken with a clear timeframe."],
+ [1,0,'C',"Yep, I can see your account. What's the problem?","Accessed the account without any ID&V."],
+ [1,0,'R',"That's not my department, you'll have to ring back.","No ownership, no transfer: the customer has to start again."],
+ [1,0,'K',"Look, I've explained this three times now.","Blames the customer and escalates frustration."],
+ [1,0,'C',"Can you read me the long card number and the three digits on the back?","Taking the CVV over a recorded line breaches PCI DSS."],
+ [1,0,'K',"Honestly, our company's a nightmare for this kind of thing.","Unprofessional and damages trust in the brand."],
+ [1,0,'V',"Right, I'll need his account number and password then.","Ignores a bereavement completely, and asks for a password.","My husband died last month and the account was in his name."],
+ [1,0,'K',"Dunno, mate. It is what it is.","Unprofessional, with no attempt to help."],
+ [1,0,'K',"Hold on.","No explanation or time estimate before a hold.","(Customer has just asked why their bill doubled.)"],
+ // ---- tier 2
+ [2,1,'R',"I can't promise it'll arrive tomorrow, but I've flagged it as priority and I'll call you Thursday with an update.","Honest expectations plus a committed follow-up."],
+ [2,1,'V',"I'm sorry to hear that. There are options like a payment break. Would it help to go through them together?","Spots financial difficulty and offers support.","I've just lost my job and I can't make this payment."],
+ [2,1,'C',"For security I can't discuss the account with you, but the account holder can add you as a named contact.","Protects the data and offers a legitimate route.","I'm calling about my wife's account."],
+ [2,1,'R',"I'm going to transfer you to billing, and I'll stay on the line to explain so you don't have to repeat yourself.","Warm transfer with context passed on."],
+ [2,1,'C',"Before you decide, there's a £25 cancellation fee on this plan. Are you happy to go ahead?","Key information disclosed before the decision."],
+ [2,1,'V',"That's absolutely fine. We'll take it one step at a time, and I'll text you a summary afterwards.","Adapts the pace and backs it up in writing.","Sorry, I get confused with numbers."],
+ [2,1,'K',"I can hear how frustrating this has been. Let me find out exactly what went wrong with the delivery.","Empathy followed by action."],
+ [2,1,'C',"I'll send that to the email address you just gave me. Can you confirm the first line of your address too?","Lets the customer supply the data rather than reading it out."],
+ [2,0,'R',"I'll make sure that refund's in your account tomorrow, guaranteed.","Over-promising something the agent can't control."],
+ [2,0,'C',"Your email on file is jane.smith87@gmail.com, is that right?","Reading out personal data gives it away. Ask the customer to tell you."],
+ [2,0,'C',"If you sign up today I can only hold this price until 5pm.","Pressure selling with an artificial deadline."],
+ [2,0,'V',"Okay. So did you want to set up the direct debit or not?","Ignores clear signs of distress.","I'm really struggling at the moment, I don't know what to do."],
+ [2,0,'R',"I've passed it to the tech team, they'll give you a call.","No reference number and no timeframe. They'll be ringing back."],
+ [2,0,'R',"I can't really help with that, so I'll just pop you through to someone.","Cold transfer with no context passed on."],
+ [2,0,'C',"Your wife called earlier about this too, she said you'd moved house.","Discloses another person's contact and details."],
+ [2,0,'K',"I'll waive the fee this once, just don't tell anyone.","Undermines the process and the brand."],
+ [2,0,'C',"I'll just note that down as feedback for you.","An expressed complaint must be logged as a complaint.","I want to make a complaint about this."],
+ // ---- tier 3
+ [3,1,'C',"I understand, but I can only discuss it with your dad. If he's happy to, he can add you in one quick call.","Holds the data-protection line while staying helpful.","Can you just tell me the balance? I'm his son."],
+ [3,1,'V',"Before you do, I want to make sure it's affordable. Can we quickly go through your income and outgoings?","Affordability check: good Consumer Duty practice.","It's fine, I'll just pay it, whatever."],
+ [3,1,'C',"I can't advise which plan is best for you, but I can explain exactly what each one includes.","Stays within a non-advised sale."],
+ [3,1,'C',"I've logged this as a formal complaint, reference C-4471. You'll hear back within eight weeks.","Complaint logged with a reference and timescale."],
+ [3,1,'V',"Thanks for telling me. With your permission, I'll add a note so you don't have to explain it again.","Records vulnerability with consent.","I'm actually calling from hospital."],
+ [3,1,'K',"I can see why you'd expect that. The fee is in your terms, but I've reviewed it and I'm refunding it as a goodwill gesture.","Validates the customer, explains, and resolves."],
+ [3,1,'K',"I need to put you on hold for about two minutes while I check with my supervisor. Is that okay?","Asks permission and sets expectations for the hold."],
+ [3,0,'V',"No problem! So, shall I go ahead and upgrade you to the premium plan?","The customer may lack capacity to agree to a sale.","I've had a few drinks, so bear with me."],
+ [3,0,'V',"Okay, so I'll just need you to agree to the new terms now.","Should offer to involve the carer or arrange support.","My carer usually handles all of this for me."],
+ [3,0,'V',"I've added a note that you're going through a divorce, so other agents know.","Sensitive information recorded without asking for consent.","Sorry, things are a bit chaotic, I'm going through a divorce."],
+ [3,0,'R',"I completely understand, and I'm so sorry. Unfortunately there's nothing I can do.","Empathy with no ownership or alternatives is still a dead end."],
+ [3,0,'C',"Most customers in your position go for Gold, so I'd recommend that one.","Gives a recommendation in a non-advised sale."],
+ [3,0,'C',"I hear you. Before you go, let me just tell you about one more offer…","Ignoring repeated cancellation requests is an unreasonable barrier.","I've said three times now, I want to cancel."],
+ [3,0,'R',"Sorry, I can only deal with one query per call.","Leaves a known issue unresolved, so there'll be a repeat contact.","And what about the second charge I mentioned?"],
+ [3,0,'C',"I've opted you in to marketing emails, you can always unsubscribe.","Marketing consent must be opt-in, not assumed."],
+ [3,0,'C',"Our records show you lived in Leeds until 2019, is that right?","Volunteers personal data during verification."],
+ [3,0,'K',"As I said, it's in the terms and conditions you agreed to.","Technically true, but dismissive and makes no attempt to help.","Why was I charged £15 for a paper bill?"],
+];
+
+const ROUND=60, $=s=>document.getElementById(s);
+let deck,idx,score,streak,bestStreak,answered,correct,catStats,mistakes,endAt,shownAt,playing,raf,fbTimer;
+
+const store={get(){try{return JSON.parse(localStorage.getItem('stf-board')||'[]')}catch(e){return[]}},
+  set(v){try{localStorage.setItem('stf-board',JSON.stringify(v))}catch(e){}}};
+const shuffle=a=>{a=a.slice();for(let i=a.length-1;i>0;i--){const j=Math.random()*(i+1)|0;[a[i],a[j]]=[a[j],a[i]]}return a};
+const esc=s=>s.replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+const mult=()=>Math.min(5,1+Math.floor(streak/3));
+
+function show(id){document.querySelectorAll('.screen').forEach(s=>s.classList.toggle('on',s.id===id))}
+
+function renderBoard(el,highlight){
+  const b=store.get();
+  el.innerHTML='<h3>Today\'s leaderboard</h3>'+(b.length?'<ol>'+b.slice(0,10).map((r,i)=>
+    `<li class="${r.t===highlight?'me':''}"><span class="r">${i+1}</span><span class="n">${esc(r.n)}</span><span class="s">${r.s.toLocaleString()}</span></li>`).join('')+'</ol>'
+    :'<div class="empty">No scores yet. Be the first.</div>');
+}
+
+function buildDeck(){
+  const t=n=>shuffle(Q.filter(q=>q[0]===n));
+  const t1=t(1);
+  return [...t1.slice(0,6),...t(2),...t(3),...t1.slice(6)];
+}
+
+function cardHTML(q,n){
+  return `<div class="meta"><span>Interaction #${n}</span><span>QA review</span></div>
+    ${q[5]?`<div class="ctx"><b>Customer</b>${esc(q[5])}</div>`:''}
+    <div class="who">Agent says</div>
+    <div class="line">“${esc(q[3])}”</div>
+    <div class="hint"><span>← fail</span><span>pass →</span></div>
+    <div class="stamp pass">PASS</div><div class="stamp fail">FAIL</div>`;
+}
+
+function dealCard(){
+  const stage=$('stage');stage.innerHTML='';
+  if(idx>=deck.length){deck=deck.concat(buildDeck())}
+  if(deck[idx+1]){const u=document.createElement('div');u.className='card under';u.innerHTML=cardHTML(deck[idx+1],idx+2);stage.appendChild(u)}
+  const c=document.createElement('div');c.className='card';c.innerHTML=cardHTML(deck[idx],idx+1);stage.appendChild(c);
+  attachDrag(c);shownAt=performance.now();
+}
+
+function attachDrag(c){
+  let x0=null,dx=0;const sp=c.querySelector('.stamp.pass'),sf=c.querySelector('.stamp.fail');
+  c.addEventListener('pointerdown',e=>{if(!playing)return;x0=e.clientX;dx=0;c.setPointerCapture(e.pointerId);c.style.transition='none'});
+  c.addEventListener('pointermove',e=>{if(x0===null)return;dx=e.clientX-x0;
+    c.style.transform=`translateX(${dx}px) rotate(${dx/16}deg)`;
+    sp.style.opacity=Math.max(0,Math.min(1,dx/90));sf.style.opacity=Math.max(0,Math.min(1,-dx/90))});
+  const up=()=>{if(x0===null)return;x0=null;
+    if(Math.abs(dx)>80){answer(dx>0)}else{c.style.transition='transform .2s';c.style.transform='';sp.style.opacity=sf.style.opacity=0}};
+  c.addEventListener('pointerup',up);c.addEventListener('pointercancel',up);
+}
+
+function answer(saidPass){
+  if(!playing)return;
+  const q=deck[idx],isPass=!!q[1],ok=saidPass===isPass,c=document.querySelector('.card:not(.under)');
+  const dt=(performance.now()-shownAt)/1000;
+  answered++;catStats[q[2]].n++;
+  if(ok){
+    correct++;catStats[q[2]].ok++;streak++;bestStreak=Math.max(bestStreak,streak);
+    const pts=100*mult()+(dt<2?50:0);score+=pts;popup('+'+pts);
+    if(streak%3===0&&streak<=12){const m=$('mult');m.classList.add('bump');setTimeout(()=>m.classList.remove('bump'),160)}
+    feedback(true,dt<2?'Quick call. <b>+50 speed bonus</b>':'');
+  }else{
+    streak=0;mistakes.push(q);
+    feedback(false,`<b>That was a ${isPass?'PASS':'FAIL'}.</b> ${esc(q[4])}`);
+    if(navigator.vibrate)navigator.vibrate(120);
+    $('stage').classList.remove('flash-bad');void $('stage').offsetWidth;$('stage').classList.add('flash-bad');
+  }
+  hud();
+  if(c){c.style.transition='transform .22s ease-in, opacity .22s';c.style.transform=`translateX(${saidPass?520:-520}px) rotate(${saidPass?24:-24}deg)`;c.style.opacity='0';
+    const st=c.querySelector(saidPass?'.stamp.pass':'.stamp.fail');if(st)st.style.opacity=1}
+  idx++;setTimeout(()=>{if(playing)dealCard()},150);
+}
+
+function popup(t){const p=document.createElement('div');p.className='pop';p.textContent=t;$('stage').appendChild(p);setTimeout(()=>p.remove(),700)}
+function feedback(good,html){
+  const f=$('fb');clearTimeout(fbTimer);
+  if(!html&&good){if(!f.classList.contains('bad'))f.classList.remove('on');return}
+  f.className='feedback on '+(good?'good':'bad');f.innerHTML='<span>'+html+'</span>';
+  fbTimer=setTimeout(()=>f.classList.remove('on'),good?900:2600);
+}
+function hud(){
+  $('score').textContent=score.toLocaleString();
+  const m=$('mult');m.textContent='×'+mult();m.classList.toggle('hot',mult()>1);
+}
+
+function tick(){
+  const left=Math.max(0,endAt-performance.now())/1000;
+  $('time').textContent=Math.ceil(left);
+  $('barFill').style.transform=`scaleX(${left/ROUND})`;
+  const low=left<=10;$('time').classList.toggle('low',low);$('bar').classList.toggle('low',low);
+  if(left<=0){finish();return}
+  raf=requestAnimationFrame(tick);
+}
+
+function start(){
+  deck=buildDeck();idx=0;score=0;streak=0;bestStreak=0;answered=0;correct=0;mistakes=[];
+  catStats={};Object.keys(CATS).forEach(k=>catStats[k]={n:0,ok:0});
+  $('fb').className='feedback';hud();$('time').textContent=ROUND;$('barFill').style.transform='scaleX(1)';
+  $('time').classList.remove('low');$('bar').classList.remove('low');
+  show('game');dealCard();
+  const cnt=$('count');let n=3;cnt.textContent=n;cnt.classList.add('on');
+  const iv=setInterval(()=>{n--;if(n>0){cnt.textContent=n}else{clearInterval(iv);cnt.classList.remove('on');
+    playing=true;endAt=performance.now()+ROUND*1000;shownAt=performance.now();raf=requestAnimationFrame(tick)}},600);
+}
+
+let lastResult=null;
+function finish(){
+  playing=false;cancelAnimationFrame(raf);
+  const acc=answered?Math.round(correct/answered*100):0;
+  lastResult={s:score,t:Date.now(),saved:false};
+  $('eScore').textContent=score.toLocaleString();
+  $('eCount').textContent=answered;$('eAcc').textContent=acc+'%';$('eStreak').textContent=bestStreak;
+  const b=store.get(),rank=b.filter(r=>r.s>score).length+1;
+  $('eRank').textContent=score>0?(rank===1?'Top of the leaderboard!':`That puts you #${rank} on the leaderboard`):'Give it another go';
+  $('pitch').innerHTML=`<p>You evaluated <strong>${answered} interaction${answered===1?'':'s'}</strong> in 60 seconds${answered?` and got ${acc}% right`:''}.</p>
+    <p style="margin-top:8px">evaluagent's AI evaluates <strong>every single one</strong>, automatically.</p>
+    <small>Most QA teams can only review a small sample of contacts by hand. Come and see what 100% coverage looks like at stand CC-E20.</small>`;
+  $('cats').innerHTML=Object.entries(CATS).map(([k,label])=>{const s=catStats[k];const p=s.n?Math.round(s.ok/s.n*100):0;
+    return `<div class="cat ${s.n&&p<60?'weak':''}"><div class="row"><span>${label}</span><span>${s.n?`${s.ok}/${s.n}`:'–'}</span></div><div class="track"><i style="width:${s.n?Math.max(4,p):0}%"></i></div></div>`}).join('');
+  $('missWrap').style.display=mistakes.length?'':'none';
+  $('misses').innerHTML=mistakes.slice(-4).reverse().map(q=>`<div class="miss"><q>${esc(q[3])}</q><div><b class="${q[1]?'ok':''}">${q[1]?'PASS':'FAIL'}</b> · ${esc(q[4])}</div></div>`).join('');
+  $('saveRow').style.display=score>0?'':'none';$('name').value='';$('saveBtn').textContent='Save';$('saveBtn').disabled=false;
+  renderBoard($('endBoard'));
+  show('end');$('end').scrollTop=0;
+}
+
+function save(){
+  const n=$('name').value.trim();if(!n||!lastResult||lastResult.saved){$('name').focus();return}
+  const b=store.get();b.push({n,s:lastResult.s,t:lastResult.t});b.sort((a,c)=>c.s-a.s);store.set(b.slice(0,50));
+  lastResult.saved=true;$('saveBtn').textContent='Saved';$('saveBtn').disabled=true;$('name').blur();
+  renderBoard($('endBoard'),lastResult.t);
+}
+
+$('go').onclick=start;$('again').onclick=start;$('saveBtn').onclick=save;
+$('name').addEventListener('keydown',e=>{if(e.key==='Enter')save()});
+$('bPass').onclick=()=>answer(true);$('bFail').onclick=()=>answer(false);
+document.addEventListener('keydown',e=>{
+  if(e.target.tagName==='INPUT')return;
+  if(playing&&e.key==='ArrowRight')answer(true);
+  else if(playing&&e.key==='ArrowLeft')answer(false);
+  else if(e.key==='Enter'&&!playing&&!$('count').classList.contains('on'))start();
+});
+renderBoard($('startBoard'));
+</script>
+</body>
+</html>
