@@ -129,6 +129,10 @@ button{font:inherit;color:inherit;border:0;background:none;cursor:pointer}
 .miss div{font-size:12.5px;color:var(--soft);margin-top:6px;line-height:1.4}
 .miss div b{color:#ff8fa1}
 .miss div b.ok{color:var(--aqua)}
+.calib{font-size:13px;color:var(--soft);line-height:1.45;margin-top:10px}
+.pop.bad{color:var(--fail)}
+.time.hit{animation:hit .4s}
+@keyframes hit{0%{transform:scale(1.35);color:var(--fail)}100%{transform:scale(1)}}
 .save{display:flex;gap:8px}
 .save input{flex:1;min-width:0;height:56px;border-radius:14px;border:1.5px solid var(--navy-line);background:var(--navy-deep);color:var(--paper);font:inherit;font-size:16px;padding:0 14px;user-select:text;-webkit-user-select:text}
 .save input:focus{outline:none;border-color:var(--aqua)}
@@ -151,7 +155,7 @@ button{font:inherit;color:inherit;border:0;background:none;cursor:pointer}
     <ul class="rules">
       <li><span class="key f">FAIL</span><span><b>Swipe left</b> if it breaks the rules: compliance, care, resolution or vulnerability.</span></li>
       <li><span class="key p">PASS</span><span><b>Swipe right</b> if it's what a great agent would say.</span></li>
-      <li><span class="key x">×5</span><span><b>Build streaks</b> to multiply your score. Answer fast for bonus points.</span></li>
+      <li><span class="key x">×5</span><span><b>Build streaks</b> to multiply your score. Wrong answers cost you <b>3 seconds</b>.</span></li>
     </ul>
     <div class="board" id="startBoard"></div>
   </div>
@@ -190,7 +194,8 @@ button{font:inherit;color:inherit;border:0;background:none;cursor:pointer}
   </div>
   <div class="pitch" id="pitch"></div>
   <div><div class="section-h">Your QA profile</div><div class="cats" id="cats"></div></div>
-  <div id="missWrap"><div class="section-h">What you missed</div><div id="misses"></div></div>
+  <div id="missWrap"><div class="section-h">What you missed</div><div id="misses"></div>
+    <p class="calib">Think we got one wrong? That's exactly why QA teams run calibration. Come and argue it with us at stand CC-E20.</p></div>
   <div class="board" id="endBoard"></div>
   <div class="actions">
     <button class="btn btn-primary" id="again">Play again</button>
@@ -228,12 +233,12 @@ const Q=[
  [2,1,'C',"Before you decide, there's a £25 cancellation fee on this plan. Are you happy to go ahead?","Key information disclosed before the decision."],
  [2,1,'V',"That's absolutely fine. We'll take it one step at a time, and I'll text you a summary afterwards.","Adapts the pace and backs it up in writing.","Sorry, I get confused with numbers."],
  [2,1,'K',"I can hear how frustrating this has been. Let me find out exactly what went wrong with the delivery.","Empathy followed by action."],
- [2,1,'C',"I'll send that to the email address you just gave me. Can you confirm the first line of your address too?","Lets the customer supply the data rather than reading it out."],
+ [2,1,'C',"Rather than me read it out, can you tell me the email address we have for you?","Lets the customer supply the data instead of disclosing it."],
  [2,0,'R',"I'll make sure that refund's in your account tomorrow, guaranteed.","Over-promising something the agent can't control."],
  [2,0,'C',"Your email on file is jane.smith87@gmail.com, is that right?","Reading out personal data gives it away. Ask the customer to tell you."],
- [2,0,'C',"If you sign up today I can only hold this price until 5pm.","Pressure selling with an artificial deadline."],
+ [2,0,'C',"Honestly, if you don't sign up right now, this price is gone forever.","Pressure selling with an artificial deadline."],
  [2,0,'V',"Okay. So did you want to set up the direct debit or not?","Ignores clear signs of distress.","I'm really struggling at the moment, I don't know what to do."],
- [2,0,'R',"I've passed it to the tech team, they'll give you a call.","No reference number and no timeframe. They'll be ringing back."],
+ [2,0,'R',"I've passed it on to the tech team, someone will get back to you at some point.","No reference number and no timeframe. They'll be ringing back."],
  [2,0,'R',"I can't really help with that, so I'll just pop you through to someone.","Cold transfer with no context passed on."],
  [2,0,'C',"Your wife called earlier about this too, she said you'd moved house.","Discloses another person's contact and details."],
  [2,0,'K',"I'll waive the fee this once, just don't tell anyone.","Undermines the process and the brand."],
@@ -241,7 +246,7 @@ const Q=[
  // ---- tier 3
  [3,1,'C',"I understand, but I can only discuss it with your dad. If he's happy to, he can add you in one quick call.","Holds the data-protection line while staying helpful.","Can you just tell me the balance? I'm his son."],
  [3,1,'V',"Before you do, I want to make sure it's affordable. Can we quickly go through your income and outgoings?","Affordability check: good Consumer Duty practice.","It's fine, I'll just pay it, whatever."],
- [3,1,'C',"I can't advise which plan is best for you, but I can explain exactly what each one includes.","Stays within a non-advised sale."],
+ [3,1,'C',"I can't advise which plan is best for you, but I can explain exactly what each one includes.","Stays within a non-advised sale.","Which plan should I go for?"],
  [3,1,'C',"I've logged this as a formal complaint, reference C-4471. You'll hear back within eight weeks.","Complaint logged with a reference and timescale."],
  [3,1,'V',"Thanks for telling me. With your permission, I'll add a note so you don't have to explain it again.","Records vulnerability with consent.","I'm actually calling from hospital."],
  [3,1,'K',"I can see why you'd expect that. The fee is in your terms, but I've reviewed it and I'm refunding it as a goodwill gesture.","Validates the customer, explains, and resolves."],
@@ -259,7 +264,8 @@ const Q=[
 ];
 
 const ROUND=60, $=s=>document.getElementById(s);
-let deck,idx,score,streak,bestStreak,answered,correct,catStats,mistakes,endAt,shownAt,playing,raf,fbTimer;
+const PENALTY=3;
+let deck,idx,score,streak,bestStreak,answered,correct,catStats,mistakes,endAt,shownAt,playing,raf,fbTimer,locked=false;
 
 const store={get(){try{return JSON.parse(localStorage.getItem('stf-board')||'[]')}catch(e){return[]}},
   set(v){try{localStorage.setItem('stf-board',JSON.stringify(v))}catch(e){}}};
@@ -276,10 +282,17 @@ function renderBoard(el,highlight){
     :'<div class="empty">No scores yet. Be the first.</div>');
 }
 
+/* Fully random draw, weighted so it starts easier and drifts harder.
+   No fixed order, so the sequence can't be learned between plays. */
 function buildDeck(){
-  const t=n=>shuffle(Q.filter(q=>q[0]===n));
-  const t1=t(1);
-  return [...t1.slice(0,6),...t(2),...t(3),...t1.slice(6)];
+  let pool=shuffle(Q);const out=[];
+  while(pool.length){
+    const p=out.length,w=q=>q[0]===1?(p<5?6:1):q[0]===2?(p<5?1:3):(p<5?.2:p<12?2:4);
+    let r=Math.random()*pool.reduce((s,q)=>s+w(q),0),i=0;
+    for(;i<pool.length-1;i++){r-=w(pool[i]);if(r<=0)break}
+    out.push(pool.splice(i,1)[0]);
+  }
+  return out;
 }
 
 function cardHTML(q,n){
@@ -296,7 +309,7 @@ function dealCard(){
   if(idx>=deck.length){deck=deck.concat(buildDeck())}
   if(deck[idx+1]){const u=document.createElement('div');u.className='card under';u.innerHTML=cardHTML(deck[idx+1],idx+2);stage.appendChild(u)}
   const c=document.createElement('div');c.className='card';c.innerHTML=cardHTML(deck[idx],idx+1);stage.appendChild(c);
-  attachDrag(c);shownAt=performance.now();
+  attachDrag(c);shownAt=performance.now();locked=false;
 }
 
 function attachDrag(c){
@@ -311,17 +324,19 @@ function attachDrag(c){
 }
 
 function answer(saidPass){
-  if(!playing)return;
+  if(!playing||locked)return;
+  locked=true;
   const q=deck[idx],isPass=!!q[1],ok=saidPass===isPass,c=document.querySelector('.card:not(.under)');
   const dt=(performance.now()-shownAt)/1000;
   answered++;catStats[q[2]].n++;
   if(ok){
     correct++;catStats[q[2]].ok++;streak++;bestStreak=Math.max(bestStreak,streak);
-    const pts=100*mult()+(dt<2?50:0);score+=pts;popup('+'+pts);
+    const fast=dt<2&&mult()>1,pts=100*mult()+(fast?50:0);score+=pts;popup('+'+pts);
     if(streak%3===0&&streak<=12){const m=$('mult');m.classList.add('bump');setTimeout(()=>m.classList.remove('bump'),160)}
-    feedback(true,dt<2?'Quick call. <b>+50 speed bonus</b>':'');
+    feedback(true,fast?'Quick call. <b>+50 speed bonus</b>':'');
   }else{
-    streak=0;mistakes.push(q);
+    streak=0;mistakes.push(q);endAt-=PENALTY*1000;popup('−'+PENALTY+'s',true);
+    const tm=$('time');tm.classList.remove('hit');void tm.offsetWidth;tm.classList.add('hit');
     feedback(false,`<b>That was a ${isPass?'PASS':'FAIL'}.</b> ${esc(q[4])}`);
     if(navigator.vibrate)navigator.vibrate(120);
     $('stage').classList.remove('flash-bad');void $('stage').offsetWidth;$('stage').classList.add('flash-bad');
@@ -332,7 +347,7 @@ function answer(saidPass){
   idx++;setTimeout(()=>{if(playing)dealCard()},150);
 }
 
-function popup(t){const p=document.createElement('div');p.className='pop';p.textContent=t;$('stage').appendChild(p);setTimeout(()=>p.remove(),700)}
+function popup(t,bad){const p=document.createElement('div');p.className='pop'+(bad?' bad':'');p.textContent=t;$('stage').appendChild(p);setTimeout(()=>p.remove(),700)}
 function feedback(good,html){
   const f=$('fb');clearTimeout(fbTimer);
   if(!html&&good){if(!f.classList.contains('bad'))f.classList.remove('on');return}
@@ -372,7 +387,7 @@ function finish(){
   $('eScore').textContent=score.toLocaleString();
   $('eCount').textContent=answered;$('eAcc').textContent=acc+'%';$('eStreak').textContent=bestStreak;
   const b=store.get(),rank=b.filter(r=>r.s>score).length+1;
-  $('eRank').textContent=score>0?(rank===1?'Top of the leaderboard!':`That puts you #${rank} on the leaderboard`):'Give it another go';
+  $('eRank').textContent=score>0?(rank===1?'Your best score yet!':`That puts you #${rank} on the leaderboard`):'Give it another go';
   $('pitch').innerHTML=`<p>You evaluated <strong>${answered} interaction${answered===1?'':'s'}</strong> in 60 seconds${answered?` and got ${acc}% right`:''}.</p>
     <p style="margin-top:8px">evaluagent's AI evaluates <strong>every single one</strong>, automatically.</p>
     <small>Most QA teams can only review a small sample of contacts by hand. Come and see what 100% coverage looks like at stand CC-E20.</small>`;
